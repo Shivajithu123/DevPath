@@ -21,56 +21,45 @@ export default function Generate() {
     const iv = setInterval(() => { si = (si+1) % stages.length; setStage(stages[si]) }, 2000)
 
     try {
-      const prompt = `You are an expert coding mentor. Create a comprehensive learning roadmap for: "${tech}"
-
-Return ONLY valid JSON:
-{
-  "title": "Learning ${tech}",
-  "description": "A hands-on roadmap to master ${tech}",
-  "levels": [
-    {
-      "id": "beginner",
-      "label": "Beginner",
-      "title": "Foundations",
-      "steps": [{ "id": "step-b1", "title": "Topic", "description": "2-3 sentence explanation" }],
-      "projects": [{ "id": "proj-b1", "name": "Project Name", "description": "2-3 sentences", "tags": ["tag1"] }]
-    },
-    { "id": "intermediate", "label": "Intermediate", "title": "Core Mastery", "steps": [...], "projects": [...] },
-    { "id": "advanced", "label": "Advanced", "title": "Expert Level", "steps": [...], "projects": [...] }
-  ]
-}
-Each level: 4-6 steps, 2-3 projects. Return ONLY JSON.`
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      // 1. Ask the backend to generate the roadmap using Gemini
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/roadmaps/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 3000,
-          messages: [{ role: "user", content: prompt }]
-        })
-      })
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem('token')}` // Send JWT if user is logged in
+        },
+        body: JSON.stringify({ technology: tech }) 
+      });
 
-      const aiData = await response.json()
-      if (aiData.error) throw new Error(aiData.error.message)
+      const roadmapData = await response.json();
 
-      const text = aiData.content[0].text.replace(/```json\n?|```\n?/g, '').trim()
-      const roadmapData = JSON.parse(text)
+      // Check for errors from the API
+      if (!response.ok || roadmapData.error) {
+        throw new Error(roadmapData.error || 'Failed to generate roadmap');
+      }
 
+      console.log("Roadmap from AI:", roadmapData);
+
+      // 2. Save the generated roadmap securely to your database
       const { data } = await api.post('/roadmaps', {
         title: roadmapData.title,
         technology: tech,
         data: roadmapData
-      })
+      });
 
-      navigate(`/roadmap/${data.id}`)
+      // 3. Navigate to the new roadmap view
+      navigate(`/roadmap/${data.id}`);
+
     } catch (err) {
+      console.error(err);
       setError('Failed to generate roadmap. Please try again.')
-      setLoading(false)
     } finally {
       clearInterval(iv)
+      setLoading(false)
     }
   }
+
+  // --- UI RENDER LOGIC BELOW REMAINS UNCHANGED ---
 
   if (loading) return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-6">

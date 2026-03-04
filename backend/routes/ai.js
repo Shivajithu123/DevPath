@@ -6,10 +6,11 @@ router.post('/generate', auth, async (req, res) => {
     const { technology } = req.body;
     if (!technology) return res.status(400).json({ error: 'technology is required' });
 
+    // The prompt remains largely the same, but we can simplify the JSON instructions
+    // because Gemini's "JSON Mode" is very reliable.
     const prompt = `You are an expert coding mentor. Create a comprehensive learning roadmap for: "${technology}"
 
-Return ONLY valid JSON in this exact structure, nothing else:
-
+Return valid JSON in this exact structure:
 {
   "title": "Learning ${technology}",
   "description": "A hands-on roadmap to master ${technology}",
@@ -34,54 +35,51 @@ Return ONLY valid JSON in this exact structure, nothing else:
         }
       ]
     },
-    {
-      "id": "intermediate",
-      "label": "Intermediate",
-      "title": "Core Mastery",
-      "steps": [],
-      "projects": []
-    },
-    {
-      "id": "advanced",
-      "label": "Advanced",
-      "title": "Expert Level",
-      "steps": [],
-      "projects": []
-    }
+    { "id": "intermediate", "label": "Intermediate", "title": "Core Mastery", "steps": [], "projects": [] },
+    { "id": "advanced", "label": "Advanced", "title": "Expert Level", "steps": [], "projects": [] }
   ]
 }
 
 Rules:
 - Each level must have 4-6 steps and 2-3 projects
-- Steps should be specific, actionable topics
-- Projects must be real, buildable applications
-- Tags should be relevant skills/concepts
-- All IDs must be unique across all levels (use prefix b=beginner, i=intermediate, a=advanced)
-- Return ONLY the JSON object, no markdown fences, no explanation`;
+- All IDs must be unique (use prefix b=beginner, i=intermediate, a=advanced)`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    // Gemini API call using standard fetch
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            // This forces the model to output raw JSON without markdown backticks
+            response_mime_type: "application/json",
+            temperature: 0.7,
+            maxOutputTokens: 4000
+          }
+        })
+      }
+    );
 
     const aiData = await response.json();
-    if (aiData.error) throw new Error(aiData.error.message);
 
-    const text = aiData.content[0].text.trim().replace(/```json\n?|```\n?/g, '');
+    // Check for API errors
+    if (aiData.error) {
+      throw new Error(aiData.error.message);
+    }
+
+    // Extraction: Gemini's structure is candidates[0] -> content -> parts[0] -> text
+    const text = aiData.candidates[0].content.parts[0].text;
     const roadmap = JSON.parse(text);
 
     res.json(roadmap);
   } catch (err) {
-    console.error(err);
+    console.error('Gemini Error:', err);
     res.status(500).json({ error: 'Failed to generate roadmap: ' + err.message });
   }
 });
