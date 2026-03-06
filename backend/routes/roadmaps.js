@@ -3,6 +3,57 @@ const crypto = require('crypto');
 const db = require('../db');
 const auth = require('../middleware/auth');
 
+router.post('/generate', auth, async (req, res) => {
+  const { technology } = req.body;
+  if (!technology) return res.status(400).json({ error: 'Technology is required' });
+
+  const prompt = `You are an expert coding mentor. Create a comprehensive learning roadmap for: "${technology}"
+
+Return ONLY valid JSON:
+{
+  "title": "Learning ${technology}",
+  "description": "A hands-on roadmap to master ${technology}",
+  "levels": [
+    {
+      "id": "beginner",
+      "label": "Beginner",
+      "title": "Foundations",
+      "steps": [{ "id": "step-b1", "title": "Topic", "description": "2-3 sentence explanation" }],
+      "projects": [{ "id": "proj-b1", "name": "Project Name", "description": "2-3 sentences", "tags": ["tag1"] }]
+    },
+    { "id": "intermediate", "label": "Intermediate", "title": "Core Mastery", "steps": [], "projects": [] },
+    { "id": "advanced", "label": "Advanced", "title": "Expert Level", "steps": [], "projects": [] }
+  ]
+}
+Each level must have 4-6 steps and 2-3 projects. Return ONLY JSON, no markdown.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 3000 }
+        })
+      }
+    );
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.candidates[0].content.parts[0].text;
+    const clean = text.replace(/```json\n?|```\n?/g, '').trim();
+    const roadmapData = JSON.parse(clean);
+
+    res.json(roadmapData);
+
+  } catch (err) {
+    console.error('Gemini error:', err.message);
+    res.status(500).json({ error: 'Failed to generate roadmap: ' + err.message });
+  }
+});
 // Get all roadmaps for user
 router.get('/', auth, async (req, res) => {
   const [rows] = await db.query(

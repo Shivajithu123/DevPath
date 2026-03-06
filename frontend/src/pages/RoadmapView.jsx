@@ -62,64 +62,139 @@ export default function RoadmapView() {
   }
 
   const exportPDF = async () => {
-    const { default: jsPDF } = await import('jspdf')
-    const doc = new jsPDF()
-    const data = roadmap.data
-    let y = 20
+  const { default: jsPDF } = await import('jspdf')
+  const { default: html2canvas } = await import('html2canvas')
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(22)
-    doc.text(data.title, 20, y); y += 12
+  // Create a hidden styled div to render the roadmap
+  const container = document.createElement('div')
+  container.style.cssText = `
+    position: fixed; top: -9999px; left: -9999px;
+    width: 794px; background: #ffffff; padding: 48px;
+    font-family: Arial, sans-serif; color: #0a0a0f;
+  `
 
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(11)
-    doc.setTextColor(100)
-    doc.text(data.description || '', 20, y); y += 16
+  const rdata = roadmap.data
 
-    data.levels?.forEach(level => {
-      if (y > 260) { doc.addPage(); y = 20 }
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.setTextColor(0)
-      doc.text(`${level.label}: ${level.title}`, 20, y); y += 10
+  container.innerHTML = `
+    <div style="margin-bottom:32px; border-bottom: 3px solid #7c6aff; padding-bottom: 24px;">
+      <div style="font-size:11px; letter-spacing:3px; color:#7c6aff; text-transform:uppercase; margin-bottom:8px;">DevPath · Personalized Roadmap</div>
+      <h1 style="font-size:32px; font-weight:900; margin:0 0 8px 0; color:#0a0a0f;">${rdata.title}</h1>
+      <p style="font-size:13px; color:#6b6b8a; margin:0 0 16px 0;">${rdata.description || ''}</p>
+      <div style="background:#f4f3ff; border-radius:8px; padding:10px 16px; display:inline-block;">
+        <span style="font-size:12px; color:#7c6aff; font-weight:bold;">
+          Progress: ${doneCount}/${allItems.length} items completed (${pct}%)
+        </span>
+      </div>
+    </div>
 
-      level.steps?.forEach((step, si) => {
-        if (y > 260) { doc.addPage(); y = 20 }
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(11)
-        doc.setTextColor(30)
-        const done = progress[step.id]
-        doc.text(`${done ? '✓' : '○'} Step ${si+1}: ${step.title}`, 25, y); y += 7
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(80)
-        const lines = doc.splitTextToSize(step.description, 160)
-        doc.text(lines, 30, y); y += lines.length * 5 + 4
-      })
+    ${rdata.levels?.map(level => `
+      <div style="margin-bottom:36px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+          <span style="
+            font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:700;
+            padding:5px 14px; border-radius:100px;
+            ${level.id === 'beginner' ? 'background:#e8fef8; color:#059669; border:1px solid #a7f3d0;' :
+              level.id === 'intermediate' ? 'background:#fffbe8; color:#d97706; border:1px solid #fde68a;' :
+              'background:#fff1f1; color:#dc2626; border:1px solid #fecaca;'}
+          ">${level.label}</span>
+          <div style="flex:1; height:1px; background:#e5e7eb;"></div>
+          <span style="font-size:18px; font-weight:800; color:#0a0a0f;">${level.title}</span>
+        </div>
 
-      if (y > 240) { doc.addPage(); y = 20 }
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.setTextColor(60, 40, 180)
-      doc.text('Projects:', 25, y); y += 7
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+          ${level.steps?.map((step, si) => `
+            <div style="
+              border: 1.5px solid ${progress[step.id] ? '#86efac' : '#e5e7eb'};
+              background: ${progress[step.id] ? '#f0fdf4' : '#fafafa'};
+              border-radius:12px; padding:16px;
+            ">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:10px; color:#9ca3af; letter-spacing:1px;">STEP ${String(si+1).padStart(2,'0')}</span>
+                <span style="
+                  width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                  font-size:11px; font-weight:bold;
+                  background:${progress[step.id] ? '#4ade80' : '#e5e7eb'};
+                  color:${progress[step.id] ? 'white' : '#9ca3af'};
+                ">${progress[step.id] ? '✓' : ''}</span>
+              </div>
+              <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#0a0a0f;">${step.title}</div>
+              <div style="font-size:11px; color:#6b7280; line-height:1.6;">${step.description}</div>
+              ${notes[step.id] ? `<div style="margin-top:8px; padding:8px; background:#f0f0ff; border-radius:6px; font-size:10px; color:#7c6aff;">📝 ${notes[step.id]}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
 
-      level.projects?.forEach(proj => {
-        if (y > 260) { doc.addPage(); y = 20 }
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(10)
-        doc.setTextColor(30)
-        doc.text(`⬡ ${proj.name}`, 30, y); y += 6
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(80)
-        const lines = doc.splitTextToSize(proj.description, 155)
-        doc.text(lines, 35, y); y += lines.length * 5 + 4
-      })
-      y += 6
+        <div style="margin-top:8px;">
+          <div style="font-size:11px; font-weight:700; color:#7c6aff; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px;">⬡ Projects to Build</div>
+          ${level.projects?.map(proj => `
+            <div style="
+              border: 1.5px solid ${progress[proj.id] ? '#86efac' : '#e5e7eb'};
+              background: ${progress[proj.id] ? '#f0fdf4' : '#fafafa'};
+              border-radius:12px; padding:16px; margin-bottom:10px;
+              display:flex; gap:14px; align-items:flex-start;
+            ">
+              <div style="
+                width:28px; height:28px; border-radius:8px; flex-shrink:0;
+                display:flex; align-items:center; justify-content:center; font-size:14px;
+                background:${progress[proj.id] ? '#4ade80' : '#e5e7eb'};
+                color:${progress[proj.id] ? 'white' : '#9ca3af'};
+                font-weight:bold;
+              ">${progress[proj.id] ? '✓' : '○'}</div>
+              <div style="flex:1;">
+                <div style="font-size:14px; font-weight:700; margin-bottom:5px; color:#0a0a0f;">${proj.name}</div>
+                <div style="font-size:11px; color:#6b7280; line-height:1.6; margin-bottom:8px;">${proj.description}</div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  ${proj.tags?.map(t => `
+                    <span style="font-size:10px; color:#7c6aff; background:#ede9fe; border:1px solid #c4b5fd; padding:2px 10px; border-radius:100px;">${t}</span>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+
+    <div style="margin-top:32px; border-top:1px solid #e5e7eb; padding-top:16px; text-align:center;">
+      <span style="font-size:11px; color:#9ca3af;">Generated by DevPath · Escape Tutorial Hell</span>
+    </div>
+  `
+
+  document.body.appendChild(container)
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff'
     })
 
-    doc.save(`${roadmap.technology}-roadmap.pdf`)
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const imgWidth = pageWidth
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+
+    let heightLeft = imgHeight
+    let position = 0
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+
+    // Add new pages if content overflows
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+
+    pdf.save(`${roadmap.technology}-roadmap.pdf`)
+  } finally {
+    document.body.removeChild(container)
   }
+}
 
   if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><div className="w-10 h-10 rounded-full border-2 border-border border-t-accent animate-spin-slow" /></div>
   if (!roadmap) return <div className="min-h-screen bg-bg flex items-center justify-center text-muted">Roadmap not found</div>
