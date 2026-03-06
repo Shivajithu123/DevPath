@@ -1,7 +1,9 @@
+import ResourcesModal from '../components/ResourcesModalnew'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import QuizModal from '../components/QuizModal'
+
 
 export default function RoadmapView() {
   const { id } = useParams()
@@ -15,6 +17,7 @@ export default function RoadmapView() {
   const [copied, setCopied] = useState(false)
   const [quizStep, setQuizStep] = useState(null)
   const [quizPassed, setQuizPassed] = useState({})
+  const [resourceStep, setResourceStep] = useState(null)
   const saveTimeout = useRef({})
 
   useEffect(() => {
@@ -40,7 +43,6 @@ export default function RoadmapView() {
       notes: notes[itemId] || ''
     })
 
-    // Show quiz when marking a STEP as complete (not project)
     if (newVal && itemType === 'step') {
       const allSteps = roadmap.data.levels?.flatMap(l => l.steps || [])
       const step = allSteps.find(s => s.id === itemId)
@@ -276,15 +278,26 @@ export default function RoadmapView() {
                   </div>
                   <div className="font-syne font-bold text-base mb-2">{step.title}</div>
                   <div className="text-muted text-sm leading-relaxed mb-4">{step.description}</div>
+
+                  {/* Quiz Passed Badge */}
                   {quizPassed[step.id] && (
                     <div className="mb-3 inline-flex items-center gap-1 text-xs font-mono text-accent bg-accent/10 border border-accent/20 px-2.5 py-1 rounded-full">
                       🧠 Quiz Passed
                     </div>
                   )}
+
+                  {/* Notes */}
                   <textarea value={notes[step.id]||''} onChange={e => saveNote(step.id, e.target.value)}
                     placeholder="Add notes, resources, links..."
-                    className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-xs text-[#e8e8f0] placeholder-muted outline-none focus:border-accent transition-colors resize-none"
+                    className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-xs text-[#e8e8f0] placeholder-muted outline-none focus:border-accent transition-colors resize-none mb-3"
                     rows={2} />
+
+                  {/* Resources Button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setResourceStep(step) }}
+                    className="w-full flex items-center justify-center gap-2 border border-border hover:border-accent text-muted hover:text-accent text-xs font-mono py-2 rounded-xl transition-all">
+                    📚 View Resources
+                  </button>
                 </div>
               ))}
             </div>
@@ -329,6 +342,15 @@ export default function RoadmapView() {
             setQuizPassed(p => ({ ...p, [quizStep.id]: true }))
             setQuizStep(null)
           }}
+        />
+      )}
+
+      {/* Resources Modal */}
+      {resourceStep && (
+        <ResourcesModal
+          step={resourceStep}
+          technology={roadmap.technology}
+          onClose={() => setResourceStep(null)}
         />
       )}
 
