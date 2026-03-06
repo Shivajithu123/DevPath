@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
+import QuizModal from '../components/QuizModal'
 
 export default function RoadmapView() {
   const { id } = useParams()
@@ -12,6 +13,8 @@ export default function RoadmapView() {
   const [sharing, setSharing] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const [quizStep, setQuizStep] = useState(null)
+  const [quizPassed, setQuizPassed] = useState({})
   const saveTimeout = useRef({})
 
   useEffect(() => {
@@ -31,7 +34,18 @@ export default function RoadmapView() {
   const toggleItem = async (itemId, itemType) => {
     const newVal = !progress[itemId]
     setProgress(p => ({ ...p, [itemId]: newVal }))
-    await api.put(`/progress/${id}/items/${itemId}`, { completed: newVal, item_type: itemType, notes: notes[itemId] || '' })
+    await api.put(`/progress/${id}/items/${itemId}`, {
+      completed: newVal,
+      item_type: itemType,
+      notes: notes[itemId] || ''
+    })
+
+    // Show quiz when marking a STEP as complete (not project)
+    if (newVal && itemType === 'step') {
+      const allSteps = roadmap.data.levels?.flatMap(l => l.steps || [])
+      const step = allSteps.find(s => s.id === itemId)
+      if (step) setQuizStep(step)
+    }
   }
 
   const saveNote = useCallback((itemId, value) => {
@@ -62,139 +76,137 @@ export default function RoadmapView() {
   }
 
   const exportPDF = async () => {
-  const { default: jsPDF } = await import('jspdf')
-  const { default: html2canvas } = await import('html2canvas')
+    const { default: jsPDF } = await import('jspdf')
+    const { default: html2canvas } = await import('html2canvas')
 
-  // Create a hidden styled div to render the roadmap
-  const container = document.createElement('div')
-  container.style.cssText = `
-    position: fixed; top: -9999px; left: -9999px;
-    width: 794px; background: #ffffff; padding: 48px;
-    font-family: Arial, sans-serif; color: #0a0a0f;
-  `
+    const container = document.createElement('div')
+    container.style.cssText = `
+      position: fixed; top: -9999px; left: -9999px;
+      width: 794px; background: #ffffff; padding: 48px;
+      font-family: Arial, sans-serif; color: #0a0a0f;
+    `
 
-  const rdata = roadmap.data
+    const rdata = roadmap.data
 
-  container.innerHTML = `
-    <div style="margin-bottom:32px; border-bottom: 3px solid #7c6aff; padding-bottom: 24px;">
-      <div style="font-size:11px; letter-spacing:3px; color:#7c6aff; text-transform:uppercase; margin-bottom:8px;">DevPath · Personalized Roadmap</div>
-      <h1 style="font-size:32px; font-weight:900; margin:0 0 8px 0; color:#0a0a0f;">${rdata.title}</h1>
-      <p style="font-size:13px; color:#6b6b8a; margin:0 0 16px 0;">${rdata.description || ''}</p>
-      <div style="background:#f4f3ff; border-radius:8px; padding:10px 16px; display:inline-block;">
-        <span style="font-size:12px; color:#7c6aff; font-weight:bold;">
-          Progress: ${doneCount}/${allItems.length} items completed (${pct}%)
-        </span>
+    container.innerHTML = `
+      <div style="margin-bottom:32px; border-bottom: 3px solid #7c6aff; padding-bottom: 24px;">
+        <div style="font-size:11px; letter-spacing:3px; color:#7c6aff; text-transform:uppercase; margin-bottom:8px;">DevPath · Personalized Roadmap</div>
+        <h1 style="font-size:32px; font-weight:900; margin:0 0 8px 0; color:#0a0a0f;">${rdata.title}</h1>
+        <p style="font-size:13px; color:#6b6b8a; margin:0 0 16px 0;">${rdata.description || ''}</p>
+        <div style="background:#f4f3ff; border-radius:8px; padding:10px 16px; display:inline-block;">
+          <span style="font-size:12px; color:#7c6aff; font-weight:bold;">
+            Progress: ${doneCount}/${allItems.length} items completed (${pct}%)
+          </span>
+        </div>
       </div>
-    </div>
 
-    ${rdata.levels?.map(level => `
-      <div style="margin-bottom:36px;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-          <span style="
-            font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:700;
-            padding:5px 14px; border-radius:100px;
-            ${level.id === 'beginner' ? 'background:#e8fef8; color:#059669; border:1px solid #a7f3d0;' :
-              level.id === 'intermediate' ? 'background:#fffbe8; color:#d97706; border:1px solid #fde68a;' :
-              'background:#fff1f1; color:#dc2626; border:1px solid #fecaca;'}
-          ">${level.label}</span>
-          <div style="flex:1; height:1px; background:#e5e7eb;"></div>
-          <span style="font-size:18px; font-weight:800; color:#0a0a0f;">${level.title}</span>
-        </div>
+      ${rdata.levels?.map(level => `
+        <div style="margin-bottom:36px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+            <span style="
+              font-size:10px; letter-spacing:2px; text-transform:uppercase; font-weight:700;
+              padding:5px 14px; border-radius:100px;
+              ${level.id === 'beginner' ? 'background:#e8fef8; color:#059669; border:1px solid #a7f3d0;' :
+                level.id === 'intermediate' ? 'background:#fffbe8; color:#d97706; border:1px solid #fde68a;' :
+                'background:#fff1f1; color:#dc2626; border:1px solid #fecaca;'}
+            ">${level.label}</span>
+            <div style="flex:1; height:1px; background:#e5e7eb;"></div>
+            <span style="font-size:18px; font-weight:800; color:#0a0a0f;">${level.title}</span>
+          </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
-          ${level.steps?.map((step, si) => `
-            <div style="
-              border: 1.5px solid ${progress[step.id] ? '#86efac' : '#e5e7eb'};
-              background: ${progress[step.id] ? '#f0fdf4' : '#fafafa'};
-              border-radius:12px; padding:16px;
-            ">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span style="font-size:10px; color:#9ca3af; letter-spacing:1px;">STEP ${String(si+1).padStart(2,'0')}</span>
-                <span style="
-                  width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-                  font-size:11px; font-weight:bold;
-                  background:${progress[step.id] ? '#4ade80' : '#e5e7eb'};
-                  color:${progress[step.id] ? 'white' : '#9ca3af'};
-                ">${progress[step.id] ? '✓' : ''}</span>
-              </div>
-              <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#0a0a0f;">${step.title}</div>
-              <div style="font-size:11px; color:#6b7280; line-height:1.6;">${step.description}</div>
-              ${notes[step.id] ? `<div style="margin-top:8px; padding:8px; background:#f0f0ff; border-radius:6px; font-size:10px; color:#7c6aff;">📝 ${notes[step.id]}</div>` : ''}
-            </div>
-          `).join('')}
-        </div>
-
-        <div style="margin-top:8px;">
-          <div style="font-size:11px; font-weight:700; color:#7c6aff; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px;">⬡ Projects to Build</div>
-          ${level.projects?.map(proj => `
-            <div style="
-              border: 1.5px solid ${progress[proj.id] ? '#86efac' : '#e5e7eb'};
-              background: ${progress[proj.id] ? '#f0fdf4' : '#fafafa'};
-              border-radius:12px; padding:16px; margin-bottom:10px;
-              display:flex; gap:14px; align-items:flex-start;
-            ">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            ${level.steps?.map((step, si) => `
               <div style="
-                width:28px; height:28px; border-radius:8px; flex-shrink:0;
-                display:flex; align-items:center; justify-content:center; font-size:14px;
-                background:${progress[proj.id] ? '#4ade80' : '#e5e7eb'};
-                color:${progress[proj.id] ? 'white' : '#9ca3af'};
-                font-weight:bold;
-              ">${progress[proj.id] ? '✓' : '○'}</div>
-              <div style="flex:1;">
-                <div style="font-size:14px; font-weight:700; margin-bottom:5px; color:#0a0a0f;">${proj.name}</div>
-                <div style="font-size:11px; color:#6b7280; line-height:1.6; margin-bottom:8px;">${proj.description}</div>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                  ${proj.tags?.map(t => `
-                    <span style="font-size:10px; color:#7c6aff; background:#ede9fe; border:1px solid #c4b5fd; padding:2px 10px; border-radius:100px;">${t}</span>
-                  `).join('')}
+                border: 1.5px solid ${progress[step.id] ? '#86efac' : '#e5e7eb'};
+                background: ${progress[step.id] ? '#f0fdf4' : '#fafafa'};
+                border-radius:12px; padding:16px;
+              ">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span style="font-size:10px; color:#9ca3af; letter-spacing:1px;">STEP ${String(si+1).padStart(2,'0')}</span>
+                  <span style="
+                    width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                    font-size:11px; font-weight:bold;
+                    background:${progress[step.id] ? '#4ade80' : '#e5e7eb'};
+                    color:${progress[step.id] ? 'white' : '#9ca3af'};
+                  ">${progress[step.id] ? '✓' : ''}</span>
+                </div>
+                <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#0a0a0f;">${step.title}</div>
+                <div style="font-size:11px; color:#6b7280; line-height:1.6;">${step.description}</div>
+                ${notes[step.id] ? `<div style="margin-top:8px; padding:8px; background:#f0f0ff; border-radius:6px; font-size:10px; color:#7c6aff;">📝 ${notes[step.id]}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="margin-top:8px;">
+            <div style="font-size:11px; font-weight:700; color:#7c6aff; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px;">⬡ Projects to Build</div>
+            ${level.projects?.map(proj => `
+              <div style="
+                border: 1.5px solid ${progress[proj.id] ? '#86efac' : '#e5e7eb'};
+                background: ${progress[proj.id] ? '#f0fdf4' : '#fafafa'};
+                border-radius:12px; padding:16px; margin-bottom:10px;
+                display:flex; gap:14px; align-items:flex-start;
+              ">
+                <div style="
+                  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+                  display:flex; align-items:center; justify-content:center; font-size:14px;
+                  background:${progress[proj.id] ? '#4ade80' : '#e5e7eb'};
+                  color:${progress[proj.id] ? 'white' : '#9ca3af'};
+                  font-weight:bold;
+                ">${progress[proj.id] ? '✓' : '○'}</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px; font-weight:700; margin-bottom:5px; color:#0a0a0f;">${proj.name}</div>
+                  <div style="font-size:11px; color:#6b7280; line-height:1.6; margin-bottom:8px;">${proj.description}</div>
+                  <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    ${proj.tags?.map(t => `
+                      <span style="font-size:10px; color:#7c6aff; background:#ede9fe; border:1px solid #c4b5fd; padding:2px 10px; border-radius:100px;">${t}</span>
+                    `).join('')}
+                  </div>
                 </div>
               </div>
-            </div>
-          `).join('')}
+            `).join('')}
+          </div>
         </div>
+      `).join('')}
+
+      <div style="margin-top:32px; border-top:1px solid #e5e7eb; padding-top:16px; text-align:center;">
+        <span style="font-size:11px; color:#9ca3af;">Generated by DevPath · Escape Tutorial Hell</span>
       </div>
-    `).join('')}
+    `
 
-    <div style="margin-top:32px; border-top:1px solid #e5e7eb; padding-top:16px; text-align:center;">
-      <span style="font-size:11px; color:#9ca3af;">Generated by DevPath · Escape Tutorial Hell</span>
-    </div>
-  `
+    document.body.appendChild(container)
 
-  document.body.appendChild(container)
+    try {
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      })
 
-  try {
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff'
-    })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const imgWidth = pageWidth
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-    const imgData = canvas.toDataURL('image/png')
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pageWidth
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
 
-    let heightLeft = imgHeight
-    let position = 0
-
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
-
-    // Add new pages if content overflows
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight
-      pdf.addPage()
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
-    }
 
-    pdf.save(`${roadmap.technology}-roadmap.pdf`)
-  } finally {
-    document.body.removeChild(container)
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      pdf.save(`${roadmap.technology}-roadmap.pdf`)
+    } finally {
+      document.body.removeChild(container)
+    }
   }
-}
 
   if (loading) return <div className="min-h-screen bg-bg flex items-center justify-center"><div className="w-10 h-10 rounded-full border-2 border-border border-t-accent animate-spin-slow" /></div>
   if (!roadmap) return <div className="min-h-screen bg-bg flex items-center justify-center text-muted">Roadmap not found</div>
@@ -207,6 +219,7 @@ export default function RoadmapView() {
   return (
     <div className="min-h-screen bg-bg pb-20" style={{backgroundImage:'linear-gradient(rgba(124,106,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,106,255,0.03) 1px,transparent 1px)',backgroundSize:'40px 40px'}}>
       <div className="max-w-4xl mx-auto px-5">
+
         {/* Header */}
         <div className="py-10 border-b border-border mb-12 flex items-start justify-between gap-6 flex-wrap">
           <div className="flex-1">
@@ -263,6 +276,11 @@ export default function RoadmapView() {
                   </div>
                   <div className="font-syne font-bold text-base mb-2">{step.title}</div>
                   <div className="text-muted text-sm leading-relaxed mb-4">{step.description}</div>
+                  {quizPassed[step.id] && (
+                    <div className="mb-3 inline-flex items-center gap-1 text-xs font-mono text-accent bg-accent/10 border border-accent/20 px-2.5 py-1 rounded-full">
+                      🧠 Quiz Passed
+                    </div>
+                  )}
                   <textarea value={notes[step.id]||''} onChange={e => saveNote(step.id, e.target.value)}
                     placeholder="Add notes, resources, links..."
                     className="w-full bg-surface2 border border-border rounded-xl px-3 py-2 text-xs text-[#e8e8f0] placeholder-muted outline-none focus:border-accent transition-colors resize-none"
@@ -300,6 +318,20 @@ export default function RoadmapView() {
           </div>
         ))}
       </div>
+
+      {/* Quiz Modal */}
+      {quizStep && (
+        <QuizModal
+          step={quizStep}
+          technology={roadmap.technology}
+          onClose={() => setQuizStep(null)}
+          onPass={() => {
+            setQuizPassed(p => ({ ...p, [quizStep.id]: true }))
+            setQuizStep(null)
+          }}
+        />
+      )}
+
     </div>
   )
 }
