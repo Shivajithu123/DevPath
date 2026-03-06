@@ -6,7 +6,7 @@ A full-stack AI-powered learning roadmap app. Stop watching tutorials. Start bui
 - **Frontend:** React + Vite + Tailwind CSS
 - **Backend:** Node.js + Express
 - **Database:** MySQL
-- **AI:** Claude API (claude-sonnet-4)
+- **AI:** Gemini  API (gemini-2.5-flash)
 - **Auth:** JWT (email + password)
 - **Hosting:** Vercel (frontend) + VPS (backend)
 
