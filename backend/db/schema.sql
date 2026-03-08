@@ -34,3 +34,16 @@ CREATE TABLE IF NOT EXISTS progress (
   UNIQUE KEY unique_item (roadmap_id, item_id),
   FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS quiz_results (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT NOT NULL,
+  roadmap_id  INT NOT NULL,
+  step_id     VARCHAR(100) NOT NULL,
+  score       INT NOT NULL,
+  total       INT NOT NULL DEFAULT 10,
+  passed      BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
+  FOREIGN KEY (roadmap_id) REFERENCES roadmaps(id) ON DELETE CASCADE
+);
