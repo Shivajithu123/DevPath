@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { resourcesAPI } from '../api/client'
 
 const TYPE_CONFIG = {
   documentation: {
@@ -34,55 +35,9 @@ export default function ResourcesModal({ step, technology, onClose }) {
   const fetchResources = async () => {
     setLoading(true)
     setError('')
-
-    const prompt = `You are a learning resource curator. Suggest the best free learning resources for someone studying: "${step.title}" in the context of learning ${technology}.
-
-Return ONLY valid JSON in this exact format:
-{
-  "resources": [
-    {
-      "type": "documentation",
-      "title": "Resource title",
-      "description": "One sentence about what this resource covers",
-      "url": "https://actual-real-url.com",
-      "source": "Website/Platform name"
-    }
-  ]
-}
-
-Rules:
-- Suggest exactly 8 resources total:
-  - 3 official documentation links
-  - 3 GitHub repositories
-  - 2 free articles or blogs
-- Use ONLY real, well-known URLs that actually exist
-- For documentation: use official docs (e.g. react.dev, docs.python.org, developer.mozilla.org)
-- For GitHub: use real popular repos (e.g. github.com/facebook/react)
-- For articles: use real platforms (e.g. dev.to, medium.com, freecodecamp.org)
-- type must be exactly: "documentation", "github", or "article"
-- Return ONLY JSON, no markdown`
-
     try {
-      const response = await fetch(
-         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
-          })
-        }
-      )
-
-      const data = await response.json()
-      if (data.error) throw new Error(data.error.message)
-
-      const text = data.candidates[0].content.parts[0].text
-      const clean = text.replace(/```json\n?|```\n?/g, '').trim()
-      const parsed = JSON.parse(clean)
-
-      setResources(parsed.resources)
+      const res = await resourcesAPI.generate({ step, technology })
+      setResources(res.data.resources)
       setLoaded(true)
     } catch (err) {
       console.error(err)

@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Already logged in — kick back to dashboard
+  if (!authLoading && user) return <Navigate to="/" replace />
 
   const handle = async e => {
     e.preventDefault()

@@ -35,7 +35,7 @@ Each level must have 4-6 steps and 2-3 projects. Return ONLY JSON, no markdown.`
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 3000 }
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2400 }
         })
       }
     );

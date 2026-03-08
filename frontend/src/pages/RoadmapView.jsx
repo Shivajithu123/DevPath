@@ -337,6 +337,7 @@ export default function RoadmapView() {
         <QuizModal
           step={quizStep}
           technology={roadmap.technology}
+          roadmapId={id}
           onClose={() => setQuizStep(null)}
           onPass={() => {
             setQuizPassed(p => ({ ...p, [quizStep.id]: true }))

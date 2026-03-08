@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api from '../utils/api'
+import { aiAPI, roadmapAPI } from '../api/client'
 
 const EXAMPLES = ['React JS', 'Python', 'Machine Learning', 'Docker & Kubernetes', 'TypeScript', 'Node.js', 'AWS', 'GraphQL', 'Flutter', 'Rust']
 
@@ -22,33 +22,17 @@ export default function Generate() {
 
     try {
       // 1. Ask the backend to generate the roadmap using Gemini
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/roadmaps/generate`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem('token')}` // Send JWT if user is logged in
-        },
-        body: JSON.stringify({ technology: tech }) 
-      });
+      const { data: roadmapData } = await aiAPI.generate(tech)
 
-      const roadmapData = await response.json();
-
-      // Check for errors from the API
-      if (!response.ok || roadmapData.error) {
-        throw new Error(roadmapData.error || 'Failed to generate roadmap');
-      }
-
-      console.log("Roadmap from AI:", roadmapData);
-
-      // 2. Save the generated roadmap securely to your database
-      const { data } = await api.post('/roadmaps', {
-        title: roadmapData.title,
+      // 2. Save the generated roadmap to the database
+      const { data } = await roadmapAPI.create({
+        title:      roadmapData.title,
         technology: tech,
-        data: roadmapData
-      });
+        data:       roadmapData,
+      })
 
       // 3. Navigate to the new roadmap view
-      navigate(`/roadmap/${data.id}`);
+      navigate(`/roadmap/${data.id}`)
 
     } catch (err) {
       console.error(err);
