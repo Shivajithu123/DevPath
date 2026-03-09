@@ -159,7 +159,7 @@ Use Nginx as a reverse proxy to expose port 5000 on your domain.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | /api/quiz/generate | ✅ | Generate 5 quiz questions via Gemini |
+| POST | /api/quiz/generate | ✅ | Generate 10 quiz questions via Gemini |
 | POST | /api/quiz/result | ✅ | Save quiz result |
 | GET | /api/quiz/results/:roadmapId | ✅ | Get quiz results for a roadmap |
 | GET | /api/quiz/analytics | ✅ | Get overall quiz analytics |
@@ -168,4 +168,4 @@ Use Nginx as a reverse proxy to expose port 5000 on your domain.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | /api/quiz/generate-resources | ✅ | Get 8 curated resources for a step |
+| POST | /api/quiz/generate-resources | ✅ | Get curated resources for a step |
