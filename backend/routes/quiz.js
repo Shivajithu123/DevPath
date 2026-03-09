@@ -6,14 +6,10 @@ const logger = require('../utils/logger');
 // ─── RESOURCES ────────────────────────────────────────────────────────────────
 
 router.post('/generate-resources', auth, async (req, res) => {
-  const { step, technology } = req.body
+  const { step, technology } = req.body;
 
-  logger.debug('Resources', 'Request received', { step, technology, userId: req.userId })
-
-  if (!step?.title || !technology) {
-    logger.warn('Resources', 'Missing required fields', { step, technology })
-    return res.status(400).json({ error: 'step and technology are required' })
-  }
+  if (!step?.title || !technology)
+    return res.status(400).json({ error: 'step and technology are required' });
 
   const prompt = `You are a learning resource curator. Suggest the best free learning resources for someone studying: "${step.title}" in the context of learning ${technology}.
 
@@ -36,15 +32,10 @@ Rules:
   - 3 GitHub repositories
   - 2 free articles or blogs
 - Use ONLY real, well-known URLs that actually exist
-- For documentation: use official docs (e.g. react.dev, docs.python.org, developer.mozilla.org)
-- For GitHub: use real popular repos (e.g. github.com/facebook/react)
-- For articles: use real platforms (e.g. dev.to, medium.com, freecodecamp.org)
 - type must be exactly: "documentation", "github", or "article"
-- Return ONLY JSON, no markdown`
+- Return ONLY JSON, no markdown`;
 
   try {
-    logger.debug('Resources', `Calling Gemini for "${step.title}" in ${technology}`)
-
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -52,74 +43,42 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.3,
-            maxOutputTokens: 1500,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 }
+        })
       }
-    )
+    );
 
-    logger.debug('Resources', `Gemini responded with status ${response.status}`)
+    const aiData = await response.json();
+    if (aiData.error) throw new Error(aiData.error.message);
 
-    const aiData = await response.json()
+    const text  = aiData.candidates[0].content.parts[0].text;
+    const clean = text.replace(/```json\n?|```\n?/g, '').trim();
+    const parsed = JSON.parse(clean);
 
-    if (aiData.error) {
-      logger.error('Resources', 'Gemini API returned an error', null, { geminiError: aiData.error })
-      throw new Error(aiData.error.message)
-    }
-
-    logger.debug('Resources', 'Gemini usage', {
-      finishReason: aiData.candidates?.[0]?.finishReason,
-      tokenCount:   aiData.usageMetadata,
-    })
-
-    const text   = aiData.candidates[0].content.parts[0].text
-    const clean  = text.replace(/```json\n?|```\n?/g, '').trim()
-
-    let parsed
-    try {
-      parsed = JSON.parse(clean)
-    } catch (parseErr) {
-      logger.error('Resources', 'Failed to parse Gemini JSON', parseErr, { raw: clean.slice(0, 300) })
-      throw new Error('Invalid JSON from Gemini: ' + parseErr.message)
-    }
-
-    logger.info('Resources', `Generated ${parsed.resources?.length} resources for "${step.title}"`)
-    res.json({ resources: parsed.resources })
-
+    res.json({ resources: parsed.resources });
   } catch (err) {
-    logger.error('Resources', 'Failed to generate resources', err, { step: step.title, technology, userId: req.userId })
-    res.status(500).json({ error: 'Failed to fetch resources: ' + err.message })
+    logger.error('Resources', 'Failed to generate resources', err);
+    res.status(500).json({ error: 'Failed to fetch resources: ' + err.message });
   }
-})
+});
 
 // ─── QUIZ GENERATE ────────────────────────────────────────────────────────────
 
 router.post('/generate', auth, async (req, res) => {
-  const { step, technology, roadmap_id } = req.body
+  const { step, technology, roadmap_id } = req.body;
 
-  logger.debug('Quiz', 'Request received', { step, technology, roadmap_id, userId: req.userId })
+  if (!step?.title || !technology || !roadmap_id)
+    return res.status(400).json({ error: 'step, technology, and roadmap_id are required' });
 
-  if (!step?.title || !technology || !roadmap_id) {
-    logger.warn('Quiz', 'Missing required fields', { step, technology, roadmap_id })
-    return res.status(400).json({ error: 'step, technology, and roadmap_id are required' })
-  }
-
-  const [rows] = await db.query(
-    'SELECT id FROM roadmaps WHERE id = ? AND user_id = ?',
+  const check = await db.query(
+    'SELECT id FROM roadmaps WHERE id = $1 AND user_id = $2',
     [roadmap_id, req.userId]
-  )
-  if (!rows.length) {
-    logger.warn('Quiz', 'Forbidden — roadmap not owned by user', { roadmap_id, userId: req.userId })
-    return res.status(403).json({ error: 'Forbidden' })
-  }
+  );
+  if (!check.rows.length) return res.status(403).json({ error: 'Forbidden' });
 
-  const prompt = `You are a coding quiz generator. Generate exactly 10 multiple choice questions to test knowledge about: "${step.title}" in the context of ${technology}.
+  const prompt = `You are a coding quiz generator. Generate exactly 5 multiple choice questions to test knowledge about: "${step.title}" in the context of ${technology}.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON:
 {
   "questions": [
     {
@@ -131,16 +90,14 @@ Return ONLY valid JSON in this exact format:
 }
 
 Rules:
-- exactly 10 questions
+- exactly 5 questions
 - each question has exactly 4 options
 - "correct" is the index (0,1,2,3) of the correct option
 - questions should be practical and test real understanding
 - vary difficulty from easy to hard
-- Return ONLY JSON, no markdown`
+- Return ONLY JSON, no markdown`;
 
   try {
-    logger.debug('Quiz', `Calling Gemini for "${step.title}" in ${technology}`)
-
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -148,206 +105,169 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.7,
-            maxOutputTokens: 2000,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+        })
       }
-    )
+    );
 
-    logger.debug('Quiz', `Gemini responded with status ${response.status}`)
+    const aiData = await response.json();
+    if (aiData.error) throw new Error(aiData.error.message);
 
-    const aiData = await response.json()
+    const text  = aiData.candidates[0].content.parts[0].text;
+    const clean = text.replace(/```json\n?|```\n?/g, '').trim();
 
-    if (aiData.error) {
-      logger.error('Quiz', 'Gemini API returned an error', null, { geminiError: aiData.error })
-      throw new Error(aiData.error.message)
-    }
-
-    logger.debug('Quiz', 'Gemini usage', {
-      finishReason: aiData.candidates?.[0]?.finishReason,
-      tokenCount:   aiData.usageMetadata,
-    })
-
-    const text  = aiData.candidates[0].content.parts[0].text
-    const clean = text.replace(/```json\n?|```\n?/g, '').trim()
-
-    let parsed
+    let parsed;
     try {
-      parsed = JSON.parse(clean)
+      parsed = JSON.parse(clean);
     } catch (parseErr) {
-      logger.error('Quiz', 'Failed to parse Gemini JSON', parseErr, { raw: clean.slice(0, 300) })
-      throw new Error('Invalid JSON from Gemini: ' + parseErr.message)
+      throw new Error('Invalid JSON from Gemini');
     }
 
-    logger.info('Quiz', `Generated ${parsed.questions?.length} questions for "${step.title}"`)
-    res.json({ questions: parsed.questions })
-
+    res.json({ questions: parsed.questions });
   } catch (err) {
-    logger.error('Quiz', 'Failed to generate quiz', err, { step: step.title, technology, roadmap_id, userId: req.userId })
-    res.status(500).json({ error: 'Failed to generate quiz: ' + err.message })
+    logger.error('Quiz', 'Failed to generate quiz', err);
+    res.status(500).json({ error: 'Failed to generate quiz: ' + err.message });
   }
-})
+});
 
 // ─── SAVE RESULT ──────────────────────────────────────────────────────────────
 
 router.post('/result', auth, async (req, res) => {
-  const { roadmap_id, step_id, score, total, passed } = req.body
+  const { roadmap_id, step_id, score, total, passed } = req.body;
 
-  logger.debug('Quiz', 'Save result request', { roadmap_id, step_id, score, total, passed, userId: req.userId })
+  if (roadmap_id == null || !step_id || score == null || total == null || passed == null)
+    return res.status(400).json({ error: 'roadmap_id, step_id, score, total, and passed are required' });
 
-  if (roadmap_id == null || !step_id || score == null || total == null || passed == null) {
-    logger.warn('Quiz', 'Missing fields for save result', req.body)
-    return res.status(400).json({ error: 'roadmap_id, step_id, score, total, and passed are required' })
-  }
-
-  const [rows] = await db.query(
-    'SELECT id FROM roadmaps WHERE id = ? AND user_id = ?',
+  const check = await db.query(
+    'SELECT id FROM roadmaps WHERE id = $1 AND user_id = $2',
     [roadmap_id, req.userId]
-  )
-  if (!rows.length) {
-    logger.warn('Quiz', 'Forbidden — roadmap not owned by user', { roadmap_id, userId: req.userId })
-    return res.status(403).json({ error: 'Forbidden' })
-  }
+  );
+  if (!check.rows.length) return res.status(403).json({ error: 'Forbidden' });
 
   try {
     await db.query(
       `INSERT INTO quiz_results (user_id, roadmap_id, step_id, score, total, passed)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [req.userId, roadmap_id, step_id, score, total, passed ? 1 : 0]
-    )
-    logger.info('Quiz', `Result saved — step: ${step_id}, score: ${score}/${total}, passed: ${passed}`)
-    res.json({ success: true })
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [req.userId, roadmap_id, step_id, score, total, passed]
+    );
+    res.json({ success: true });
   } catch (err) {
-    logger.error('Quiz', 'Failed to save quiz result', err, { roadmap_id, step_id, userId: req.userId })
-    res.status(500).json({ error: 'Failed to save result: ' + err.message })
+    res.status(500).json({ error: 'Failed to save result: ' + err.message });
   }
-})
+});
 
 // ─── GET RESULTS ──────────────────────────────────────────────────────────────
 
 router.get('/results/:roadmapId', auth, async (req, res) => {
-  const { roadmapId } = req.params
+  const { roadmapId } = req.params;
 
-  logger.debug('Quiz', 'Fetch results', { roadmapId, userId: req.userId })
-
-  const [rows] = await db.query(
-    'SELECT id FROM roadmaps WHERE id = ? AND user_id = ?',
+  const check = await db.query(
+    'SELECT id FROM roadmaps WHERE id = $1 AND user_id = $2',
     [roadmapId, req.userId]
-  )
-  if (!rows.length) {
-    logger.warn('Quiz', 'Forbidden — roadmap not owned by user', { roadmapId, userId: req.userId })
-    return res.status(403).json({ error: 'Forbidden' })
-  }
+  );
+  if (!check.rows.length) return res.status(403).json({ error: 'Forbidden' });
 
   try {
-    const [results] = await db.query(
+    const result = await db.query(
       `SELECT step_id, score, total, passed, created_at
        FROM quiz_results
-       WHERE roadmap_id = ? AND user_id = ?
+       WHERE roadmap_id = $1 AND user_id = $2
        ORDER BY created_at DESC`,
       [roadmapId, req.userId]
-    )
-    logger.debug('Quiz', `Returning ${results.length} results for roadmap ${roadmapId}`)
-    res.json(results)
+    );
+    res.json(result.rows);
   } catch (err) {
-    logger.error('Quiz', 'Failed to fetch quiz results', err, { roadmapId, userId: req.userId })
-    res.status(500).json({ error: 'Failed to fetch results: ' + err.message })
+    res.status(500).json({ error: 'Failed to fetch results: ' + err.message });
   }
-})
-
-module.exports = router;
+});
 
 // ─── ANALYTICS ────────────────────────────────────────────────────────────────
 
-// GET /api/quiz/analytics
-// Returns overall stats + per-roadmap + per-step breakdown for the logged-in user
 router.get('/analytics', auth, async (req, res) => {
-  const userId = req.userId
-  logger.debug('Analytics', 'Fetch analytics', { userId })
+  const userId = req.userId;
 
   try {
-    // 1. Overall totals
-    const [[totals]] = await db.query(
+    const totalsResult = await db.query(
       `SELECT
-         COUNT(*)                              AS total_attempts,
-         SUM(passed = 1)                       AS total_passed,
-         SUM(passed = 0)                       AS total_failed,
-         ROUND(AVG(score / total * 100), 1)   AS avg_score_pct
+         COUNT(*)                                        AS total_attempts,
+         SUM(CASE WHEN passed THEN 1 ELSE 0 END)        AS total_passed,
+         SUM(CASE WHEN NOT passed THEN 1 ELSE 0 END)    AS total_failed,
+         ROUND(AVG(score::numeric / total * 100), 1)    AS avg_score_pct
        FROM quiz_results
-       WHERE user_id = ?`,
+       WHERE user_id = $1`,
       [userId]
-    )
+    );
 
-    // 2. Attempts over time (last 30 days, grouped by date)
-    const [timeline] = await db.query(
+    const timelineResult = await db.query(
       `SELECT
-         DATE(created_at)  AS date,
-         COUNT(*)          AS attempts,
-         SUM(passed = 1)   AS passed
+         DATE(created_at)                               AS date,
+         COUNT(*)                                       AS attempts,
+         SUM(CASE WHEN passed THEN 1 ELSE 0 END)        AS passed
        FROM quiz_results
-       WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '30 days'
        GROUP BY DATE(created_at)
        ORDER BY date ASC`,
       [userId]
-    )
+    );
 
-    // 3. Per-roadmap breakdown
-    const [byRoadmap] = await db.query(
+    const byRoadmapResult = await db.query(
       `SELECT
-         r.id              AS roadmap_id,
-         r.title           AS roadmap_title,
+         r.id                                                AS roadmap_id,
+         r.title                                             AS roadmap_title,
          r.technology,
-         COUNT(qr.id)      AS attempts,
-         SUM(qr.passed=1)  AS passed,
-         ROUND(AVG(qr.score / qr.total * 100), 1) AS avg_score_pct
+         COUNT(qr.id)                                        AS attempts,
+         SUM(CASE WHEN qr.passed THEN 1 ELSE 0 END)         AS passed,
+         ROUND(AVG(qr.score::numeric / qr.total * 100), 1)  AS avg_score_pct
        FROM quiz_results qr
        JOIN roadmaps r ON r.id = qr.roadmap_id
-       WHERE qr.user_id = ?
+       WHERE qr.user_id = $1
        GROUP BY r.id
        ORDER BY attempts DESC`,
       [userId]
-    )
+    );
 
-    // 4. Per-step breakdown (filtered by roadmap_id if provided)
-    const roadmapFilter = req.query.roadmap_id
-    const stepQuery = roadmapFilter
-      ? `SELECT
-           qr.step_id,
-           COUNT(*)          AS attempts,
-           SUM(qr.passed=1)  AS passed,
-           MAX(qr.score)     AS best_score,
-           ROUND(AVG(qr.score / qr.total * 100), 1) AS avg_score_pct,
-           MAX(qr.created_at) AS last_attempt
-         FROM quiz_results qr
-         WHERE qr.user_id = ? AND qr.roadmap_id = ?
-         GROUP BY qr.step_id
-         ORDER BY last_attempt DESC`
-      : `SELECT
-           qr.step_id,
-           r.title AS roadmap_title,
-           COUNT(*)          AS attempts,
-           SUM(qr.passed=1)  AS passed,
-           MAX(qr.score)     AS best_score,
-           ROUND(AVG(qr.score / qr.total * 100), 1) AS avg_score_pct,
-           MAX(qr.created_at) AS last_attempt
-         FROM quiz_results qr
-         JOIN roadmaps r ON r.id = qr.roadmap_id
-         WHERE qr.user_id = ?
-         GROUP BY qr.step_id, qr.roadmap_id
-         ORDER BY last_attempt DESC`
+    const roadmapFilter = req.query.roadmap_id;
+    const byStepResult = roadmapFilter
+      ? await db.query(
+          `SELECT
+             qr.step_id,
+             COUNT(*)                                          AS attempts,
+             SUM(CASE WHEN qr.passed THEN 1 ELSE 0 END)       AS passed,
+             MAX(qr.score)                                     AS best_score,
+             ROUND(AVG(qr.score::numeric / qr.total * 100), 1) AS avg_score_pct,
+             MAX(qr.created_at)                                AS last_attempt
+           FROM quiz_results qr
+           WHERE qr.user_id = $1 AND qr.roadmap_id = $2
+           GROUP BY qr.step_id
+           ORDER BY last_attempt DESC`,
+          [userId, roadmapFilter]
+        )
+      : await db.query(
+          `SELECT
+             qr.step_id,
+             r.title                                             AS roadmap_title,
+             COUNT(*)                                            AS attempts,
+             SUM(CASE WHEN qr.passed THEN 1 ELSE 0 END)         AS passed,
+             MAX(qr.score)                                       AS best_score,
+             ROUND(AVG(qr.score::numeric / qr.total * 100), 1)  AS avg_score_pct,
+             MAX(qr.created_at)                                  AS last_attempt
+           FROM quiz_results qr
+           JOIN roadmaps r ON r.id = qr.roadmap_id
+           WHERE qr.user_id = $1
+           GROUP BY qr.step_id, qr.roadmap_id, r.title
+           ORDER BY last_attempt DESC`,
+          [userId]
+        );
 
-    const stepParams = roadmapFilter ? [userId, roadmapFilter] : [userId]
-    const [byStep] = await db.query(stepQuery, stepParams)
-
-    logger.info('Analytics', `Returning analytics for user ${userId}`)
-    res.json({ totals, timeline, byRoadmap, byStep })
-
+    res.json({
+      totals:    totalsResult.rows[0],
+      timeline:  timelineResult.rows,
+      byRoadmap: byRoadmapResult.rows,
+      byStep:    byStepResult.rows,
+    });
   } catch (err) {
-    logger.error('Analytics', 'Failed to fetch analytics', err, { userId })
-    res.status(500).json({ error: 'Failed to fetch analytics: ' + err.message })
+    res.status(500).json({ error: 'Failed to fetch analytics: ' + err.message });
   }
-})
+});
+
+module.exports = router;
