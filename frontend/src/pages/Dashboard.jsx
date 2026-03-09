@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
-import QuizAnalytics from '../components/QuizAnalytics'
+
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
@@ -138,7 +138,7 @@ export default function Dashboard() {
                 <h2 className="font-syne font-extrabold text-2xl">Analytics</h2>
               </div>
             </div>
-            <QuizAnalytics roadmaps={roadmaps} />
+            
           </div>
         )}
       </div>
