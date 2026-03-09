@@ -118,7 +118,7 @@ Use Nginx as a reverse proxy to expose port 5000 on your domain.
 - Share roadmap via public link
 - Full JWT auth (register / login / logout)
 - MySQL persistence for all data
-- **AI Quiz** — 5 MCQ questions per step, auto-triggered on step completion (4/5 to pass)
+- **AI Quiz** — 10 MCQ questions per step, auto-triggered on step completion (7/10 to pass)
 - **Resource Suggestions** — 8 curated free resources per step (docs, GitHub, articles)
 - **Quiz Analytics** — track attempts, scores, pass rates per roadmap and step
 
