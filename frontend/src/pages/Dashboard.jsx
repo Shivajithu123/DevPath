@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import QuizAnalytics from '../components/QuizAnalytics'
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
@@ -124,6 +125,20 @@ export default function Dashboard() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── Quiz Analytics ── */}
+        {!loading && roadmaps.length > 0 && (
+          <div className="mt-16">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1 h-6 rounded-full bg-accent" />
+              <div>
+                <div className="font-mono text-xs text-muted tracking-widest uppercase">Quiz Performance</div>
+                <h2 className="font-syne font-extrabold text-2xl">Analytics</h2>
+              </div>
+            </div>
+            <QuizAnalytics roadmaps={roadmaps} />
           </div>
         )}
       </div>

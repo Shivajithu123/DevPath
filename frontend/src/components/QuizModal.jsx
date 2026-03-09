@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { quizAPI } from '../api/client'
 
-export default function QuizModal({ step, technology, onClose, onPass }) {
+export default function QuizModal({ step, technology, roadmapId, onClose, onPass }) {
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(false)
   const [current, setCurrent] = useState(0)
@@ -14,49 +15,9 @@ export default function QuizModal({ step, technology, onClose, onPass }) {
   const generateQuiz = async () => {
     setLoading(true)
     setError('')
-
-    const prompt = `You are a coding quiz generator. Generate exactly 10 multiple choice questions to test knowledge about: "${step.title}" in the context of ${technology}.
-
-Return ONLY valid JSON in this exact format:
-{
-  "questions": [
-    {
-      "question": "Question text here?",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct": 0
-    }
-  ]
-}
-
-Rules:
-- exactly 10 questions
-- each question has exactly 4 options
-- "correct" is the index (0,1,2,3) of the correct option
-- questions should be practical and test real understanding
-- vary difficulty from easy to hard
-- Return ONLY JSON, no markdown`
-
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
-          })
-        }
-      )
-
-      const data = await response.json()
-      if (data.error) throw new Error(data.error.message)
-
-      const text = data.candidates[0].content.parts[0].text
-      const clean = text.replace(/```json\n?|```\n?/g, '').trim()
-      const parsed = JSON.parse(clean)
-
-      setQuestions(parsed.questions)
+      const res = await quizAPI.generate({ step, technology, roadmap_id: roadmapId })
+      setQuestions(res.data.questions)
       setStarted(true)
     } catch (err) {
       setError('Failed to generate quiz. Please try again.')
@@ -84,6 +45,14 @@ Rules:
       const finalScore = newAnswers.filter(a => a.isCorrect).length
       setScore(finalScore)
       setShowResult(true)
+      // Save result to backend
+      quizAPI.saveResult({
+        roadmap_id: roadmapId,
+        step_id:    step.id,
+        score:      finalScore,
+        total:      questions.length,
+        passed:     finalScore >= 7,
+      }).catch(err => console.error('Failed to save quiz result:', err))
     }
   }
 

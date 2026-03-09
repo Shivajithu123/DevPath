@@ -60,7 +60,7 @@ Rules:
             // This forces the model to output raw JSON without markdown backticks
             response_mime_type: "application/json",
             temperature: 0.7,
-            maxOutputTokens: 4000
+            maxOutputTokens: 2400
           }
         })
       }

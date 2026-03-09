@@ -44,4 +44,15 @@ export const aiAPI = {
   generate: (technology) => api.post('/ai/generate', { technology }),
 }
 
+export const quizAPI = {
+  generate:   (data)        => api.post('/quiz/generate', data),
+  saveResult: (data)        => api.post('/quiz/result', data),
+  getResults: (roadmapId)   => api.get(`/quiz/results/${roadmapId}`),
+  analytics:  (roadmapId)   => api.get('/quiz/analytics', { params: roadmapId ? { roadmap_id: roadmapId } : {} }),
+}
+
+export const resourcesAPI = {
+  generate: (data) => api.post('/quiz/generate-resources', data), // { step, technology }
+}
+
 export default api
