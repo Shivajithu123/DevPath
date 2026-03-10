@@ -58,9 +58,9 @@ Rules:
           }],
           generationConfig: {
             // This forces the model to output raw JSON without markdown backticks
-            response_mime_type: "application/json",
-            temperature: 0.7,
-            maxOutputTokens: 2400
+  response_mime_type: "application/json",
+  temperature: 0.7,
+  maxOutputTokens: 8000
           }
         })
       }
@@ -75,7 +75,8 @@ Rules:
 
     // Extraction: Gemini's structure is candidates[0] -> content -> parts[0] -> text
     const text = aiData.candidates[0].content.parts[0].text;
-    const roadmap = JSON.parse(text);
+    const cleaned = text.replace(/```json|```/g, '').trim();
+    const roadmap = JSON.parse(cleaned);
 
     res.json(roadmap);
   } catch (err) {
