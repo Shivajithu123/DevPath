@@ -7,10 +7,10 @@ const app = express();
 
 // ── MIDDLEWARE ──
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: /\.vercel\.app$/,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true
 }));
-app.use(express.json());
 
 // Rate limit AI endpoint
 app.use('/api/ai', rateLimit({
