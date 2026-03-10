@@ -43,7 +43,11 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 }
+         generationConfig: { 
+  response_mime_type: "application/json",
+  temperature: 0.3, 
+  maxOutputTokens: 3000  // increase from 1500
+}
         })
       }
     );
@@ -105,7 +109,11 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2000 }
+          generationConfig: { 
+  response_mime_type: "application/json",
+  temperature: 0.7, 
+  maxOutputTokens: 4000  // increase from 2000
+}
         })
       }
     );
