@@ -1,171 +1,188 @@
-# DevPath — Escape Tutorial Hell
+# DevPath 🚀
+### AI-Powered Learning Roadmaps for Developers
 
-A full-stack AI-powered learning roadmap app. Stop watching tutorials. Start building real projects.
-
-## Tech Stack
-
-- **Frontend:** React + Vite + Tailwind CSS
-- **Backend:** Node.js + Express
-- **Database:** MySQL
-- **AI:** Gemini API (gemini-2.5-flash)
-- **Auth:** JWT (email + password)
-- **Hosting:** Vercel (frontend) + VPS (backend)
+> Stop watching tutorials. Start building. DevPath generates personalized learning roadmaps, quizzes, and resources for any technology — so you always know what to learn next.
 
 ---
 
-## Project Structure
+## 🌐 Live Demo
+
+**link:** [https://dev-path-eight.vercel.app](https://dev-path-eight.vercel.app)  
+
+
+---
+
+## ✨ Features
+
+- 🗺️ **AI-Generated Roadmaps** — Enter any technology and get a structured learning roadmap with Beginner, Intermediate, and Advanced levels
+- 🧠 **Quizzes** — Test your understanding at every step with AI-generated multiple choice questions
+- 📚 **Curated Resources** — Get free learning resources (docs, GitHub repos, articles) for every topic
+- 📊 **Progress Tracking** — Track your learning journey and see your quiz analytics
+- 🔗 **Shareable Roadmaps** — Share your roadmap with others via a unique link
+- 🔐 **Authentication** — Secure JWT-based login and registration
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| React + Vite | UI Framework |
+| Axios | HTTP Client |
+| Vercel | Hosting |
+
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| Node.js + Express | REST API |
+| Supabase (PostgreSQL) | Database |
+| JWT | Authentication |
+| Gemini API | AI Generation |
+| Render | Hosting |
+
+---
+
+## 📁 Project Structure
 
 ```
 devpath/
-├── frontend/          # React app (deploy to Vercel)
-│   └── src/
-│       ├── pages/         # Login, Register, Dashboard, Generate, RoadmapView, SharedRoadmap
-│       ├── components/    # QuizModal, ResourcesModal
-│       ├── context/       # AuthContext (JWT state)
-│       └── api/           # Axios API client (client.js)
-└── backend/           # Express API (deploy to VPS)
-    ├── routes/        # auth.js, roadmaps.js, progress.js, quiz.js
-    ├── middleware/    # auth.js (JWT verify)
-    ├── utils/         # logger.js
-    └── db/            # MySQL pool + schema.sql
+├── frontend/          # React + Vite app
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── api/
+│   │       └── client.js
+│   └── .env
+│
+└── backend/           # Node.js + Express API
+    ├── routes/
+    │   ├── auth.js
+    │   ├── roadmaps.js
+    │   ├── ai.js
+    │   ├── quiz.js
+    │   └── progress.js
+    ├── middleware/
+    │   └── auth.js
+    ├── db/
+    ├── utils/
+    └── index.js
 ```
 
 ---
 
-## Setup Instructions
+## 🚀 Getting Started
 
-### 1. Database (MySQL)
+### Prerequisites
+- Node.js v18+
+- Supabase account
+- Google Gemini API key
 
+### 1. Clone the repository
 ```bash
-mysql -u root -p < backend/db/schema.sql
+git clone https://github.com/yourusername/devpath.git
+cd devpath
 ```
 
-### 2. Backend
-
+### 2. Setup Backend
 ```bash
 cd backend
 npm install
-cp .env.example .env
-# Fill in .env with your values
-npm start
 ```
 
-**Required .env values:**
-
-```
+Create a `.env` file in the `backend` folder:
+```env
 PORT=5000
-DB_HOST=your_mysql_host
-DB_USER=your_mysql_user
-DB_PASSWORD=your_mysql_password
-DB_NAME=devpath
-JWT_SECRET=your_random_secret_key_min_32_chars
-FRONTEND_URL=https://your-frontend-domain.vercel.app
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+JWT_SECRET=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
+FRONTEND_URL=http://localhost:5173
 ```
 
-### 3. Frontend
+Start the backend:
+```bash
+node index.js
+```
 
+### 3. Setup Frontend
 ```bash
 cd frontend
 npm install
 ```
 
-Create `frontend/.env`:
-
+Create a `.env` file in the `frontend` folder:
+```env
+VITE_API_URL=http://localhost:5000
 ```
-VITE_API_URL=https://your-backend-api-url.com
-```
 
+Start the frontend:
 ```bash
-npm run dev      # development
-npm run build    # production build
+npm run dev
 ```
-
-### 4. Deploy to Vercel (Frontend)
-
-1. Push the `frontend/` folder to a GitHub repo
-2. Import into Vercel
-3. Set environment variable: `VITE_API_URL=https://your-backend.com`
-4. Deploy
-
-### 5. Deploy Backend to VPS
-
-```bash
-# On your VPS
-git clone your-repo
-cd devpath/backend
-npm install
-# Set up .env
-npm install -g pm2
-pm2 start server.js --name devpath-api
-pm2 save
-```
-
-Use Nginx as a reverse proxy to expose port 5000 on your domain.
 
 ---
 
-## Features
-
-- AI-generated roadmaps for any technology (3 levels: Beginner → Intermediate → Advanced)
-- 4–6 learning steps + 2–3 real projects per level
-- Mark steps & projects complete with progress tracking
-- Per-step notes (auto-saved with debounce)
-- Dashboard with all your roadmaps
-- Rename & delete roadmaps
-- Export roadmap as PDF
-- Share roadmap via public link
-- Full JWT auth (register / login / logout)
-- MySQL persistence for all data
-- **AI Quiz** — 10 MCQ questions per step, auto-triggered on step completion (7/10 to pass)
-- **Resource Suggestions** — 8 curated free resources per step (docs, GitHub, articles)
-- **Quiz Analytics** — track attempts, scores, pass rates per roadmap and step
-
----
-
-## API Endpoints
+## 🔌 API Endpoints
 
 ### Auth
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /api/auth/register | ❌ | Create account |
-| POST | /api/auth/login | ❌ | Login |
-| GET | /api/auth/me | ✅ | Current user |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register a new user |
+| POST | `/api/auth/login` | Login |
+| GET | `/api/auth/me` | Get current user |
 
 ### Roadmaps
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/roadmaps` | Get all roadmaps |
+| POST | `/api/roadmaps` | Create a roadmap |
+| GET | `/api/roadmaps/:id` | Get a roadmap |
+| PATCH | `/api/roadmaps/:id` | Rename a roadmap |
+| DELETE | `/api/roadmaps/:id` | Delete a roadmap |
+| POST | `/api/roadmaps/:id/share` | Toggle share |
+| POST | `/api/roadmaps/:id/progress` | Save progress |
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /api/roadmaps | ✅ | All user roadmaps |
-| POST | /api/roadmaps | ✅ | Save new roadmap |
-| POST | /api/roadmaps/generate | ✅ | Generate roadmap via Gemini AI |
-| GET | /api/roadmaps/:id | ✅ | Single roadmap + progress |
-| PATCH | /api/roadmaps/:id | ✅ | Rename roadmap |
-| DELETE | /api/roadmaps/:id | ✅ | Delete roadmap |
-| POST | /api/roadmaps/:id/share | ✅ | Generate share link |
-| DELETE | /api/roadmaps/:id/share | ✅ | Unshare |
-| GET | /api/roadmaps/shared/:token | ❌ | Public shared view |
-
-### Progress
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| PUT | /api/progress/:roadmapId/items/:itemId | ✅ | Update step/project progress |
-| GET | /api/progress/:roadmapId | ✅ | Get all progress |
+### AI
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/ai/generate` | Generate a roadmap |
 
 ### Quiz
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/quiz/generate` | Generate quiz questions |
+| POST | `/api/quiz/result` | Save quiz result |
+| GET | `/api/quiz/results/:roadmapId` | Get results |
+| GET | `/api/quiz/analytics` | Get analytics |
+| POST | `/api/quiz/generate-resources` | Get resources for a step |
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /api/quiz/generate | ✅ | Generate 10 quiz questions via Gemini |
-| POST | /api/quiz/result | ✅ | Save quiz result |
-| GET | /api/quiz/results/:roadmapId | ✅ | Get quiz results for a roadmap |
-| GET | /api/quiz/analytics | ✅ | Get overall quiz analytics |
+---
 
-### Resources
+## 🌍 Deployment
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /api/quiz/generate-resources | ✅ | Get curated resources for a step |
+### Backend (Render)
+1. Connect your GitHub repo to Render
+2. Set **Root Directory** to `backend`
+3. Set **Start Command** to `node index.js`
+4. Add all environment variables from `.env`
+
+### Frontend (Vercel)
+1. Connect your GitHub repo to Vercel
+2. Set **Root Directory** to `frontend`
+3. Add environment variable:
+   ```
+   VITE_API_URL=https://your-render-url.onrender.com
+   ```
+
+---
+
+
+
+## 📄 License
+
+MIT License — feel free to use and modify.
+
+---
+
+> *"Build apps. Not watch hours."* 💻
